@@ -126,19 +126,3 @@ class Favorite(models.Model):
         related_name='Favorite',
         verbose_name='Ищбранное',
     )
-
-
-class Subscribe(models.Model):
-    user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        primary_key=True,
-        related_name='Subscriber',
-        verbose_name='Пользователь',
-    )
-    author = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='author',
-        verbose_name='Подписки',
-    )
