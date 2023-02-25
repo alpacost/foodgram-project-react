@@ -46,7 +46,7 @@ class User(AbstractUser):
         return self.role == self.ADMIN
 
     class Meta:
-        ordering = ['id',]
+        ordering = ['id', ]
         constraints = [
             models.CheckConstraint(
                 check=~models.Q(
@@ -70,4 +70,3 @@ class Subscribe(models.Model):
         related_name='author',
         verbose_name='Подписки',
     )
-

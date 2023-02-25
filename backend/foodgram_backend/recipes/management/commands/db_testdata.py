@@ -15,7 +15,8 @@ class Command(BaseCommand):
                 print(row)
                 if Ingredient.objects.filter(name=row[0]).exists():
                     Ingredient.objects.filter(name=row[0]).delete()
-                    print(f'Строка с {row[0]} существует, строка будет перезаписана')
+                    print(f'Строка с '
+                          f'{row[0]} существует, строка будет перезаписана')
                 ingredient = Ingredient(
                     name=row[0],
                     measurement_unit=row[1]
