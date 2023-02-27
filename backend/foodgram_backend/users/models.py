@@ -70,3 +70,6 @@ class Subscribe(models.Model):
         related_name='author',
         verbose_name='Подписки',
     )
+
+    class Meta:
+        unique_together = ('user', 'author')

@@ -54,6 +54,9 @@ class RecipeIngredient(models.Model):
         verbose_name='Количество ингредиентов',
     )
 
+    class Meta:
+        unique_together = ('recipe_name', 'ingredient')
+
 
 class Recipe(models.Model):
     author = models.ForeignKey(
@@ -89,21 +92,8 @@ class Recipe(models.Model):
     def __str__(self):
         return self.name
 
-    def ingredient_sort(self, *args, **kwargs):
-        ingredient_list = (RecipeIngredient.objects.
-                           select_related('recipe_name').
-                           filter(recipe_name=self.pk))
-        unique_ingredients = (ingredient_list.
-                              values_list('ingredient').distinct())
-        for unique_ingredient in unique_ingredients:
-            ingredients = ingredient_list.filter(ingredient=unique_ingredient)
-            if ingredients.count() > 1:
-                first_elem = ingredients.first()
-                for ingredient in ingredients.exclude(pk=first_elem.pk):
-                    first_elem.amount += ingredient.amount
-                    ingredient.delete()
-                    first_elem.save()
-        super(Recipe, self).save(*args, **kwargs)
+    def ingredient_set(self):
+        return RecipeIngredient.objects.filter(recipe_name=self.pk)
 
 
 class ShopList(models.Model):
@@ -120,6 +110,9 @@ class ShopList(models.Model):
         verbose_name='Список покупок',
     )
 
+    class Meta:
+        unique_together = ('user', 'recipe')
+
 
 class Favorite(models.Model):
     user = models.ForeignKey(
@@ -134,3 +127,6 @@ class Favorite(models.Model):
         related_name='Favorite',
         verbose_name='Ищбранное',
     )
+
+    class Meta:
+        unique_together = ('user', 'recipe')

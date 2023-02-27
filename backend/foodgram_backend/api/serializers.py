@@ -1,19 +1,15 @@
-import base64
-from django.core.files.base import ContentFile
-from recipes.models import (Recipe, Tag, Ingredient,
-                            Favorite, ShopList, RecipeIngredient)
 from rest_framework import serializers
+
+from recipes.models import Favorite
+from recipes.models import Ingredient
+from recipes.models import Recipe
+from recipes.models import RecipeIngredient
+from recipes.models import ShopList
+from recipes.models import Tag
 from users.serializers import CustomUserSerializer
-from .validators import ingredients_validator, tags_validator
-
-
-class Base64ImageField(serializers.ImageField):
-    def to_internal_value(self, data):
-        if isinstance(data, str) and data.startswith('data:image'):
-            form, imgstr = data.split(';base64,')
-            ext = form.split('/')[-1]
-            data = ContentFile(base64.b64decode(imgstr), name='temp.' + ext)
-        return super().to_internal_value(data)
+from .fields import Base64ImageField
+from .validators import ingredients_validator
+from .utils import add_ingredient
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -26,6 +22,9 @@ class TagSerializer(serializers.ModelSerializer):
             'color',
             'slug',
         )
+        extra_kwargs = {'namer': {'required': True},
+                        'color': {'required': True},
+                        'slug': {'required': True}}
 
 
 class IngredientSerializer(serializers.ModelSerializer):
@@ -41,9 +40,9 @@ class IngredientSerializer(serializers.ModelSerializer):
 
 class RecipeIngredientSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source='ingredient.id')
-    name = serializers.CharField(source='ingredient.name')
+    name = serializers.CharField(source='ingredient.name', required=False)
     measurement_unit = serializers.CharField(
-        source='ingredient.measurement_unit')
+        source='ingredient.measurement_unit', required=False)
 
     class Meta:
         model = RecipeIngredient
@@ -55,12 +54,10 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
         )
 
 
-class RecipeSerializer(serializers.ModelSerializer):
-    tags = TagSerializer(many=True, read_only=True,)
+class CreateRecipeSerializer(serializers.ModelSerializer):
     author = CustomUserSerializer(read_only=True)
-    ingredients = serializers.SerializerMethodField(
-        method_name='get_ingredients'
-    )
+    ingredients = RecipeIngredientSerializer(many=True,
+                                             source='ingredient_set')
     is_favorited = serializers.SerializerMethodField(
         method_name='get_is_favorited'
     )
@@ -84,10 +81,6 @@ class RecipeSerializer(serializers.ModelSerializer):
             'cooking_time'
         )
 
-    def get_ingredients(self, obj):
-        return RecipeIngredientSerializer(
-            RecipeIngredient.objects.filter(recipe_name=obj), many=True).data
-
     def get_is_favorited(self, obj):
         if self.context['request'].user.is_anonymous:
             return False
@@ -100,39 +93,51 @@ class RecipeSerializer(serializers.ModelSerializer):
         return ShopList.objects.filter(user=self.context['request'].user,
                                        recipe=obj).exists()
 
-    def create(self, validated_data):
-        ingredient_list = self.context['request'].data['ingredients']
+    def validate(self, attrs):
+        ingredient_list = []
+        for item in attrs['ingredient_set']:
+            if list(item.values())[0]['id'] in ingredient_list:
+                raise serializers.ValidationError(
+                    'Все ингредиенты должны быть уникальны')
+            ingredient_list.append(list(item.values())[0]['id'])
         ingredients_validator(ingredient_list)
-        tags = self.context['request'].data['tags']
-        tags_validator(tags)
+        return attrs
+
+    def create(self, validated_data):
+        ingredients = validated_data.pop('ingredient_set')
+        tags = validated_data.pop('tags')
         recipe = Recipe.objects.create(
             author=self.context['request'].user, **validated_data)
-        recipe_id = recipe.pk
-        recipe.tags.set(Tag.objects.filter(pk__in=tags))
-        for ingredient in ingredient_list:
-            RecipeIngredient.objects.create(
-                recipe_name=Recipe.objects.get(pk=recipe_id),
-                ingredient=Ingredient.objects.get(pk=ingredient['id']),
-                amount=ingredient['amount']
-            )
-        recipe.ingredient_sort()
+        recipe.tags.set(tags)
+        add_ingredient(recipe, ingredients)
         return recipe
 
     def update(self, instance, validated_data):
-        if 'ingredients' in self.context['request'].data.keys():
-            ingredient_list = self.context['request'].data['ingredients']
-            ingredients_validator(ingredient_list)
+        if 'ingredient_set' in validated_data.keys():
+            ingredients = validated_data.pop('ingredient_set')
             RecipeIngredient.objects.filter(recipe_name=instance.pk).delete()
-            for ingredient in ingredient_list:
-                RecipeIngredient.objects.create(
-                    recipe_name=Recipe.objects.get(pk=instance.pk),
-                    ingredient=Ingredient.objects.get(pk=ingredient['id']),
-                    amount=ingredient['amount']
-                )
-            instance.ingredient_sort()
-        if 'tags' in self.context['request'].data.keys():
+            add_ingredient(instance, ingredients)
+        if 'tags' in validated_data.keys():
             tags_list = self.context['request'].data['tags']
-            tags_validator(tags_list)
             instance.tags.set(Tag.objects.filter(pk__in=tags_list))
         instance.save()
         return super().update(instance, validated_data)
+
+
+class RecipeSerializer(CreateRecipeSerializer):
+    tags = TagSerializer(many=True)
+
+    class Meta:
+        model = Recipe
+        fields = (
+            'id',
+            'tags',
+            'author',
+            'ingredients',
+            'is_favorited',
+            'is_in_shopping_cart',
+            'name',
+            'image',
+            'text',
+            'cooking_time'
+        )

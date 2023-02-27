@@ -1,28 +1,35 @@
-import os
+import io
 
+from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import mixins, status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework import status
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.decorators import api_view
+from rest_framework.decorators import permission_classes
 from rest_framework.response import Response
 
-from recipes.models import (Favorite, Ingredient, Recipe,
-                            RecipeIngredient, ShopList, Tag)
-from users.models import Subscribe, User
-from users.serializers import (SubscribeCustomUserSerializer,
-                               UserRecipeSerializer)
-from .filters import IngredientFilter, RecipeFilter
-from .permissions import IsOwnerOrReadOnly, permissions
-from .serializers import (IngredientSerializer,
-                          RecipeSerializer, TagSerializer)
-
-
-class CreateListDeleteViewSet(mixins.CreateModelMixin,
-                              mixins.ListModelMixin,
-                              mixins.DestroyModelMixin,
-                              viewsets.GenericViewSet):
-    pass
+from recipes.models import Favorite
+from recipes.models import Ingredient
+from recipes.models import Recipe
+from recipes.models import RecipeIngredient
+from recipes.models import ShopList
+from recipes.models import Tag
+from users.models import Subscribe
+from users.models import User
+from users.serializers import SubscribeCustomUserSerializer
+from .filters import IngredientFilter
+from .filters import RecipeFilter
+from .mixins import CreateListDeleteViewSet
+from .permissions import IsOwnerOrReadOnly
+from .permissions import permissions
+from .serializers import CreateRecipeSerializer
+from .serializers import IngredientSerializer
+from .serializers import RecipeSerializer
+from .serializers import TagSerializer
+from .utils import favorite_shopping_cart
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
@@ -41,39 +48,57 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    serializer_class = RecipeSerializer
     permission_classes = [IsOwnerOrReadOnly]
     filter_backends = [DjangoFilterBackend]
     filterset_class = RecipeFilter
     filterset_fields = ('author',)
+
+    def get_serializer_class(self):
+        if self.action in ('create', 'partial_update'):
+            return CreateRecipeSerializer
+        return RecipeSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        instance = self.perform_create(serializer)
+        instance_serializer = RecipeSerializer(instance,
+                                               context={'request': request})
+        return Response(instance_serializer.data,
+                        status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance,
+                                         data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        value = self.perform_update(serializer)
+        instance_serializer = RecipeSerializer(
+            value, context={'request': request})
+        return Response(instance_serializer.data,
+                        status=status.HTTP_200_OK)
+
+    def perform_update(self, serializer):
+        return serializer.update(
+            serializer.instance, serializer.validated_data)
+
+    def perform_create(self, serializer):
+        return serializer.save()
 
     @action(methods=['post', 'delete'],
             detail=True, permission_classes=[permissions.IsAuthenticated],
             url_path='favorite', url_name='favorite')
     def favorite(self, request, *args, **kwargs):
         target_recipe = get_object_or_404(Recipe, pk=self.kwargs['pk'])
-        if request.method == 'POST':
-            Favorite.objects.get_or_create(user=request.user,
-                                           recipe=target_recipe)
-            serializer = UserRecipeSerializer(target_recipe)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        get_object_or_404(
-            Favorite, user=request.user, recipe=target_recipe).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return favorite_shopping_cart(request, Favorite, target_recipe)
 
     @action(methods=['post', 'delete'],
             detail=True, permission_classes=[permissions.IsAuthenticated],
             url_path='shopping_cart', url_name='shopping_cart')
     def shopping_cart(self, request, *args, **kwargs):
         target_recipe = get_object_or_404(Recipe, pk=self.kwargs['pk'])
-        if request.method == 'POST':
-            ShopList.objects.get_or_create(user=request.user,
-                                           recipe=target_recipe)
-            serializer = UserRecipeSerializer(target_recipe)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        get_object_or_404(ShopList,
-                          user=request.user, recipe=target_recipe).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return favorite_shopping_cart(request, ShopList, target_recipe)
 
 
 class SubscriptionViewSet(CreateListDeleteViewSet):
@@ -95,23 +120,14 @@ def get_shoppinglist(request):
     shop_list = ShopList.objects.filter(user=request.user)
     shop_list = RecipeIngredient.objects.filter(
         recipe_name__in=shop_list.values_list('recipe', flat=True))
-    unique_ingredient = shop_list.values_list('ingredient',
-                                              flat=True).distinct()
-    result = {}
-    for ingredient in unique_ingredient:
-        result[Ingredient.objects.get(pk=ingredient)] = sum(
-            shop_list.filter(
-                ingredient=ingredient).values_list('amount', flat=True))
-    if os.path.exists(f'media/shopping_cart/{request.user.username}.txt'):
-        os.remove(f'media/shopping_cart/{request.user.username}.txt')
-    with open(f'media/shopping_cart/{request.user.username}.txt',
-              'w', encoding='utf-8') as f:
-        for ingredient in result:
-            f.write(f'{ingredient.name} ({ingredient.measurement_unit}) '
-                    f'- {result[ingredient]}')
-            f.write('\n')
-        f.close()
-    with open(f'media/shopping_cart/{request.user.username}.txt',
-              'r', encoding='utf-8') as f:
-        file_data = f.read()
-        return HttpResponse(file_data, content_type='text/plain')
+    result = (Ingredient.objects.filter(
+        pk__in=shop_list.values_list('ingredient', flat=True))).annotate(
+        amount_sum=Sum('ingredient_recipe__amount')).distinct()
+    f = io.StringIO()
+    for ingredient in result:
+        f.write(f'{ingredient.name} ({ingredient.measurement_unit}) '
+                f'- {ingredient.amount_sum}')
+        f.write('\n')
+    file_data = f.getvalue()
+    f.close()
+    return HttpResponse(file_data, content_type='text/plain')

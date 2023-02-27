@@ -1,9 +1,11 @@
+from django.shortcuts import get_object_or_404
 from djoser.serializers import UserSerializer
-from .models import User, Subscribe
+from rest_framework import serializers
+
 from foodgram_backend.pagination import CustomPageNumberPagination
 from recipes.models import Recipe
-from rest_framework import serializers
-from django.shortcuts import get_object_or_404
+from .models import Subscribe
+from .models import User
 
 
 class CustomUserSerializer(UserSerializer, CustomPageNumberPagination):
@@ -62,11 +64,15 @@ class SubscribeCustomUserSerializer(CustomUserSerializer):
                             'is_subscribed'
                             )
 
+    def validate(self, attrs):
+        if self.context['request'].user == get_object_or_404(
+                User, pk=self.context['view'].kwargs['pk']):
+            raise serializers.ValidationError('Нельзя подписаться на себя')
+        return attrs
+
     def create(self, validated_data):
         target_user = get_object_or_404(User,
                                         pk=self.context['view'].kwargs['pk'])
-        if self.context['request'].user == target_user:
-            raise serializers.ValidationError('Нельзя подписаться на себя')
         Subscribe.objects.get_or_create(
             user=self.context['request'].user,
             author=target_user
