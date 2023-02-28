@@ -1,10 +1,6 @@
-from django_filters.rest_framework import filters
-from django_filters.rest_framework import FilterSet
+from django_filters.rest_framework import filters, FilterSet
 
-from recipes.models import Favorite
-from recipes.models import Ingredient
-from recipes.models import Recipe
-from recipes.models import ShopList
+from recipes.models import Favorite, Ingredient, Recipe, ShopList
 
 
 class IngredientFilter(FilterSet):

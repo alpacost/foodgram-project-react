@@ -4,8 +4,7 @@ from rest_framework import serializers
 
 from foodgram_backend.pagination import CustomPageNumberPagination
 from recipes.models import Recipe
-from .models import Subscribe
-from .models import User
+from .models import Subscribe, User
 
 
 class CustomUserSerializer(UserSerializer, CustomPageNumberPagination):

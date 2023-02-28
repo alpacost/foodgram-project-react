@@ -4,31 +4,16 @@ from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import status
 from rest_framework import viewsets
-from rest_framework.decorators import action
-from rest_framework.decorators import api_view
-from rest_framework.decorators import permission_classes
-from rest_framework.response import Response
+from rest_framework.decorators import action, api_view, permission_classes
 
-from recipes.models import Favorite
-from recipes.models import Ingredient
-from recipes.models import Recipe
-from recipes.models import RecipeIngredient
-from recipes.models import ShopList
-from recipes.models import Tag
-from users.models import Subscribe
-from users.models import User
+from recipes.models import Favorite, Ingredient, Recipe, RecipeIngredient, ShopList, Tag
+from users.models import Subscribe, User
 from users.serializers import SubscribeCustomUserSerializer
-from .filters import IngredientFilter
-from .filters import RecipeFilter
+from .filters import IngredientFilter, RecipeFilter
 from .mixins import CreateListDeleteViewSet
-from .permissions import IsOwnerOrReadOnly
-from .permissions import permissions
-from .serializers import CreateRecipeSerializer
-from .serializers import IngredientSerializer
-from .serializers import RecipeSerializer
-from .serializers import TagSerializer
+from .permissions import IsOwnerOrReadOnly, permissions
+from .serializers import IngredientSerializer, RecipeSerializer, TagSerializer
 from .utils import favorite_shopping_cart
 
 
@@ -48,43 +33,11 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
+    serializer_class = RecipeSerializer
     permission_classes = [IsOwnerOrReadOnly]
     filter_backends = [DjangoFilterBackend]
     filterset_class = RecipeFilter
     filterset_fields = ('author',)
-
-    def get_serializer_class(self):
-        if self.action in ('create', 'partial_update'):
-            return CreateRecipeSerializer
-        return RecipeSerializer
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        instance = self.perform_create(serializer)
-        instance_serializer = RecipeSerializer(instance,
-                                               context={'request': request})
-        return Response(instance_serializer.data,
-                        status=status.HTTP_201_CREATED)
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance,
-                                         data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        value = self.perform_update(serializer)
-        instance_serializer = RecipeSerializer(
-            value, context={'request': request})
-        return Response(instance_serializer.data,
-                        status=status.HTTP_200_OK)
-
-    def perform_update(self, serializer):
-        return serializer.update(
-            serializer.instance, serializer.validated_data)
-
-    def perform_create(self, serializer):
-        return serializer.save()
 
     @action(methods=['post', 'delete'],
             detail=True, permission_classes=[permissions.IsAuthenticated],

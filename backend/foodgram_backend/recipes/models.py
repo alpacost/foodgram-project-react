@@ -55,7 +55,9 @@ class RecipeIngredient(models.Model):
     )
 
     class Meta:
-        unique_together = ('recipe_name', 'ingredient')
+        constraints = [
+            models.UniqueConstraint(fields=['recipe_name', 'ingredient'], name='unique ingredients')
+        ]
 
 
 class Recipe(models.Model):
@@ -92,9 +94,6 @@ class Recipe(models.Model):
     def __str__(self):
         return self.name
 
-    def ingredient_set(self):
-        return RecipeIngredient.objects.filter(recipe_name=self.pk)
-
 
 class ShopList(models.Model):
     user = models.ForeignKey(
@@ -111,7 +110,9 @@ class ShopList(models.Model):
     )
 
     class Meta:
-        unique_together = ('user', 'recipe')
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'recipe'], name='unique shopping list')
+        ]
 
 
 class Favorite(models.Model):
@@ -129,4 +130,6 @@ class Favorite(models.Model):
     )
 
     class Meta:
-        unique_together = ('user', 'recipe')
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'recipe'], name='unique favorite')
+        ]

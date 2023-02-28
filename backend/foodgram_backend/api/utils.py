@@ -2,23 +2,19 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
 
-from recipes.models import Ingredient
-from recipes.models import Recipe
-from recipes.models import RecipeIngredient
+from recipes.models import Ingredient, Recipe, RecipeIngredient
 from users.serializers import UserRecipeSerializer
 
 
 def add_ingredient(recipe, ingredients):
-    ingredient_list = [0] * len(ingredients)
-    k = 0
+    ingredient_list = []
     for ingredient in ingredients:
-        ingredient_list[k] = (RecipeIngredient(
+        ingredient_list.append(RecipeIngredient(
             recipe_name=Recipe.objects.get(pk=recipe.pk),
             ingredient=Ingredient.objects.get(
-                pk=list(ingredient.values())[0]['id']),
+             pk=list(ingredient.values())[0]['id']),
             amount=list(ingredient.values())[1]
         ))
-        k += 1
     RecipeIngredient.objects.bulk_create(ingredient_list)
 
 
