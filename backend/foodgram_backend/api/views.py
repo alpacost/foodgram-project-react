@@ -7,7 +7,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 
-from recipes.models import Favorite, Ingredient, Recipe, RecipeIngredient, ShopList, Tag
+from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
+                            ShopList, Tag)
 from users.models import Subscribe, User
 from users.serializers import SubscribeCustomUserSerializer
 from .filters import IngredientFilter, RecipeFilter

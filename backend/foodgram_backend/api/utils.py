@@ -12,7 +12,7 @@ def add_ingredient(recipe, ingredients):
         ingredient_list.append(RecipeIngredient(
             recipe_name=Recipe.objects.get(pk=recipe.pk),
             ingredient=Ingredient.objects.get(
-             pk=list(ingredient.values())[0]['id']),
+                pk=list(ingredient.values())[0]['id']),
             amount=list(ingredient.values())[1]
         ))
     RecipeIngredient.objects.bulk_create(ingredient_list)

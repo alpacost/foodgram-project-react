@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from recipes.models import Favorite, Ingredient, Recipe, RecipeIngredient, ShopList, Tag
+from recipes.models import (Favorite, Ingredient, Recipe,
+                            RecipeIngredient, ShopList, Tag)
 from users.serializers import CustomUserSerializer
 from .fields import Base64ImageField
 from .utils import add_ingredient
@@ -123,4 +124,3 @@ class RecipeSerializer(serializers.ModelSerializer):
             instance.tags.set(Tag.objects.filter(pk__in=tags_list))
         instance.save()
         return super().update(instance, validated_data)
-

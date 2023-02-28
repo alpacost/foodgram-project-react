@@ -56,7 +56,9 @@ class RecipeIngredient(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['recipe_name', 'ingredient'], name='unique ingredients')
+            models.UniqueConstraint(
+                fields=['recipe_name', 'ingredient'],
+                name='unique ingredients')
         ]
 
 
@@ -111,7 +113,9 @@ class ShopList(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['user', 'recipe'], name='unique shopping list')
+            models.UniqueConstraint(
+                fields=['user', 'recipe'],
+                name='unique shopping list')
         ]
 
 
@@ -131,5 +135,7 @@ class Favorite(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['user', 'recipe'], name='unique favorite')
+            models.UniqueConstraint(
+                fields=['user', 'recipe'],
+                name='unique favorite')
         ]
