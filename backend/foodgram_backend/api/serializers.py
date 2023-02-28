@@ -18,9 +18,6 @@ class TagSerializer(serializers.ModelSerializer):
             'color',
             'slug',
         )
-        extra_kwargs = {'namer': {'required': False},
-                        'color': {'required': False},
-                        'slug': {'required': False}}
 
 
 class IngredientSerializer(serializers.ModelSerializer):
@@ -115,12 +112,12 @@ class RecipeSerializer(serializers.ModelSerializer):
         return recipe
 
     def update(self, instance, validated_data):
-        if 'ingredient_set' in validated_data.keys():
+        if 'recipe_ingridient' in validated_data.keys():
             ingredients = validated_data.pop('recipe_ingridient')
             RecipeIngredient.objects.filter(recipe_name=instance.pk).delete()
             add_ingredient(instance, ingredients)
         if 'tags' in validated_data.keys():
-            tags_list = self.context['request'].data['tags']
-            instance.tags.set(Tag.objects.filter(pk__in=tags_list))
+            tags_list = validated_data.pop('tags')
+            instance.tags.set(tags_list)
         instance.save()
         return super().update(instance, validated_data)
