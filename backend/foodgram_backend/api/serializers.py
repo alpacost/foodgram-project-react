@@ -50,7 +50,7 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
 class RecipeSerializer(serializers.ModelSerializer):
     author = CustomUserSerializer(read_only=True)
     ingredients = RecipeIngredientSerializer(many=True,
-                                             source='recipe_ingridient')
+                                             source='recipe_ingredient')
     is_favorited = serializers.SerializerMethodField(
         method_name='get_is_favorited'
     )
@@ -93,7 +93,7 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         ingredient_list = []
-        for item in attrs['recipe_ingridient']:
+        for item in attrs['recipe_ingredient']:
             item = [i for i in item.values()]
             if item[0]['id'] in ingredient_list:
                 raise serializers.ValidationError(
@@ -103,7 +103,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        ingredients = validated_data.pop('recipe_ingridient')
+        ingredients = validated_data.pop('recipe_ingredient')
         tags = validated_data.pop('tags')
         recipe = Recipe.objects.create(
             author=self.context['request'].user, **validated_data)
@@ -112,8 +112,8 @@ class RecipeSerializer(serializers.ModelSerializer):
         return recipe
 
     def update(self, instance, validated_data):
-        if 'recipe_ingridient' in validated_data.keys():
-            ingredients = validated_data.pop('recipe_ingridient')
+        if 'recipe_ingredient' in validated_data.keys():
+            ingredients = validated_data.pop('recipe_ingredient')
             RecipeIngredient.objects.filter(recipe_name=instance.pk).delete()
             add_ingredient(instance, ingredients)
         if 'tags' in validated_data.keys():
