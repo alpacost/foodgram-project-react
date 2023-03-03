@@ -79,7 +79,10 @@ class SubscribeCustomUserSerializer(CustomUserSerializer):
         return target_user
 
     def get_recipes(self, target_user):
-        limit = int(self.context['request'].GET.get('recipes_limit'))
+        if self.context['request'].GET.get('recipes_limit'):
+            limit = int(self.context['request'].GET.get('recipes_limit'))
+        else:
+            limit = None
         result = UserRecipeSerializer(Recipe.objects.filter(
             author=target_user), many=True).data
         return result[:limit]
