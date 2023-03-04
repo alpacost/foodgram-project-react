@@ -6,7 +6,7 @@ from recipes.models import Ingredient
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
-        path = ('../../data/ingredients.csv')
+        path = ('./data/ingredients.csv')
         print(f'импорт из {path}')
 
         with open(path, encoding='utf-8') as f:
