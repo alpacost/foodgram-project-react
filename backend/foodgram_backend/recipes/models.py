@@ -26,11 +26,11 @@ class Tag(models.Model):
 class Ingredient(models.Model):
     name = models.CharField(
         verbose_name='Название',
-        max_length=50,
+        max_length=150,
     )
     measurement_unit = models.CharField(
         verbose_name='Единица измерения',
-        max_length=10,
+        max_length=30,
     )
 
     def __str__(self):
