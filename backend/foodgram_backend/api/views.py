@@ -60,7 +60,9 @@ class SubscriptionViewSet(CreateListDeleteViewSet):
 
     def get_queryset(self):
         return User.objects.filter(
-            pk__in=Subscribe.objects.filter(user=self.request.user))
+            pk__in=Subscribe.objects.filter(
+                user=self.request.user).values_list(
+                'author', flat=True))
 
     def get_object(self):
         return get_object_or_404(Subscribe,
